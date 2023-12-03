@@ -56,7 +56,7 @@ def index():
         multi_word=[]
         single_word=[]
 
-        for a in range(len(postTag) - 1): 
+        for a in range(len(postTag)): 
             for b in range(len(postTag[a])-1):
                 if postTag[a][b][1] == 'NN' or postTag[a][b][1] == 'NNP':
                     if postTag[a][b + 1][1] == 'VB':
@@ -144,6 +144,10 @@ def index():
                     pass
 
         df = pd.DataFrame(data, columns=['Kata Majemuk', 'Kata Majemuk Koreksi', 'Similarity'])
+        df = df.drop_duplicates( 
+              subset = ['Kata Majemuk', 'Kata Majemuk Koreksi'], 
+              keep = 'first').reset_index(drop = True)
+        
         df1 = df[df['Similarity'].apply(lambda x : x == 100)]
         df2 = df[df['Similarity'].apply(lambda x : x < 100)]
 

@@ -6,7 +6,6 @@ from fuzzywuzzy import fuzz
 from nlp_id.postag import PosTag
 from nlp_id.lemmatizer import Lemmatizer
 from nltk.tokenize import sent_tokenize
-from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
 
 app = Flask(__name__, template_folder='index')
@@ -21,29 +20,17 @@ def index():
         artikel = request.form['text']
         kalimat = artikel
 
-        #words_to_remove = ['ini','juga','hal','dan','dengan','adalah','untuk','kita','yang','tetapi','saja','maka','akan', 'di', 'secara']
-
-        def remove_punc(teks) :
-            punc = '''!()[]{};:''\,<>/?@#$%^&*_~'''
-            for a in teks:
-                if a in punc:
-                    teks = teks.replace(a, "")
-            # Create a regular expression pattern to match the words to remove with word boundaries
-            #pattern = r'\b(?:' + '|'.join(re.escape(word) for word in words_to_remove) + r')\b'
-
-            # Replace matched words with an empty string
-            #teks = re.sub(pattern, '', teks)
-            return teks
-
+        #read dataset
         katamajemuk = pd.read_csv('daftarkatamajemuk.csv')
         list_katamajemuk = katamajemuk['kata majemuk'].values.tolist()
-        # create stemmer
-        factory = StemmerFactory()
-        stemmer = factory.create_stemmer()
+        dataset = pd.read_csv('dataset_kata_benar.csv')
+        dataset = dataset['word'].values.tolist()
+
+        # create lemmatizer
         lemmatizer = Lemmatizer()
 
+        #preprocess
         kalimat = kalimat.lower()
-        #kalimat = re.sub(r'\d', '',kalimat)
         kalimat = ' '.join(kalimat.split())
         kalimat_kalimat = sent_tokenize(kalimat)
         postagger = PosTag()
@@ -56,29 +43,19 @@ def index():
         multi_word=[]
         single_word=[]
 
-        for a in range(len(postTag) - 1): 
+        for a in range(len(postTag)): 
             for b in range(len(postTag[a])-1):
-                if postTag[a][b][1] == 'NN' or postTag[a][b][1] == 'NNP':
-                    if postTag[a][b + 1][1] == 'VB':
-                        multi_word.append([postTag[a][b], postTag[a][b + 1]])
-                if postTag[a][b][1] == 'NN' or postTag[a][b][1] == 'NNP':
-                    if postTag[a][b + 1][1] == 'JJ':
-                        multi_word.append([postTag[a][b], postTag[a][b + 1]])
-                if postTag[a][b][1] == 'NN' or postTag[a][b][1] == 'NNP':
-                    if postTag[a][b + 1][1] == 'NN' or postTag[a][b + 1][1] == 'NN':
+                if postTag[a][b][1] == 'NN':
+                    if postTag[a][b + 1][1] == 'VB' or postTag[a][b + 1][1] == 'JJ' or postTag[a][b + 1][1] == 'NN':
                         multi_word.append([postTag[a][b], postTag[a][b + 1]])
                 if postTag[a][b][1] == 'JJ':
-                    if postTag[a][b + 1][1] == 'NN':
+                    if postTag[a][b + 1][1] == 'NN' or postTag[a][b + 1][1] == 'JJ':
                         multi_word.append([postTag[a][b], postTag[a][b + 1]])
                 if postTag[a][b][1] == 'VB':
-                    if postTag[a][b + 1][1] == 'VB':
+                    if postTag[a][b + 1][1] == 'VB' or postTag[a][b + 1][1] == 'NN':
                         multi_word.append([postTag[a][b], postTag[a][b + 1]])
-                if postTag[a][b][1] == 'VB':
-                    if postTag[a][b + 1][1] == 'NN':
-                        multi_word.append([postTag[a][b], postTag[a][b + 1]])
-                if postTag[a][b][1] == 'JJ':
-                    if postTag[a][b + 1][1] == 'JJ':
-                        multi_word.append([postTag[a][b], postTag[a][b + 1]])
+
+
 
         for a in range(len(postTag)):
             for b in range(len(postTag[a])):
@@ -123,7 +100,7 @@ def index():
 
         list_singleword = list(dict.fromkeys(single_word))
 
-        # Calculate Levenshtein distances
+        # Compare words with dataset
         data = []
 
         for a in range(len(list_multiword)) :
@@ -142,8 +119,13 @@ def index():
                     data.append([list_singleword[a], list_katamajemuk[b], similarity])
                 else : 
                     pass
-
+        
+        #Dataframe based on array data
         df = pd.DataFrame(data, columns=['Kata Majemuk', 'Kata Majemuk Koreksi', 'Similarity'])
+        df = df.drop_duplicates( 
+            subset = ['Kata Majemuk', 'Kata Majemuk Koreksi'], 
+            keep = 'first').reset_index(drop = True)
+        
         df1 = df[df['Similarity'].apply(lambda x : x == 100)]
         df2 = df[df['Similarity'].apply(lambda x : x < 100)]
 
@@ -153,8 +135,7 @@ def index():
         majemuk = df2['Kata Majemuk'].values.tolist()
         koreksi = df2['Kata Majemuk Koreksi'].values.tolist()
         kemiripan = df2['Similarity'].values.tolist()
-        dataset = pd.read_csv('dataset kata benar.csv')
-        dataset = dataset['word'].values.tolist()
+
 
         def check_whitespace_in_words(word_list):
             words_with_whitespace = [word for word in range(len(word_list)) if ' ' not in word_list[word]]

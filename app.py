@@ -186,7 +186,8 @@ def index():
                     'suggestion' : kataKoreksi[i]
                 }
             i += 1
-        return render_template('result.html',  artikel=artikel, result=result)
+        return jsonify(result)
+        #return render_template('result.html',  artikel=artikel, result=result)
     return render_template('home.html')
 
 if __name__ == '__main__':
